@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CS PrepHub - Interactive Quizzes & 3D Flashcards</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f6ff',
+                            100: '#e0edff',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            900: '#1e3a8a',
+                        },
+                        accent: {
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+        .transform-style-3d {
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        @keyframes pulse-subtle {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+        .pulse-subtle {
+            animation: pulse-subtle 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
+
+    <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('dashboard')">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-accent-600 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                    <i class="fa-solid fa-laptop-code text-lg"></i>
+                </div>
+                <div>
+                    <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-brand-700 to-accent-600 bg-clip-text text-transparent">CS PrepHub</span>
+                    <span class="hidden sm:inline-block ml-2 text-xs font-semibold px-2 py-0.5 bg-brand-50 text-brand-700 rounded-full border border-brand-200">BCA Prep Edition</span>
+                </div>
+            </div>
+
+            <!-- Main Navigation Links -->
+            <nav class="hidden md:flex items-center space-x-1">
+                <button id="nav-dashboard" onclick="switchTab('dashboard')" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all text-brand-600 bg-brand-50">
+                    <i class="fa-solid fa-shapes mr-2"></i>Dashboard
+                </button>
+                <button id="nav-quiz" onclick="switchTab('quiz-select')" class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-brand-600 hover:bg-slate-100 transition-all">
+                    <i class="fa-solid fa-list-check mr-2"></i>Quiz Mode
+                </button>
+                <button id="nav-flashcards" onclick="switchTab('flashcards')" class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-brand-600 hover:bg-slate-100 transition-all">
+                    <i class="fa-solid fa-clone mr-2"></i>Flashcards
+                </button>
+                <button id="nav-ai-gen" onclick="switchTab('ai-gen')" class="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-accent-600 hover:bg-purple-50 transition-all">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-2 text-accent-500"></i>AI Generator
+                </button>
+            </nav>
+
+            <!-- User Quick Stats Header -->
+            <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-2 bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm">
+                    <i class="fa-solid fa-fire text-amber-500 text-sm"></i>
+                    <span id="header-streak">0 Day Streak</span>
+                </div>
+                <div class="flex items-center space-x-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-full text-xs font-bold shadow-sm">
+                    <i class="fa-solid fa-trophy text-emerald-500 text-sm"></i>
+                    <span id="header-score">0 pts</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Nav Ribbon -->
+        <div class="md:hidden flex border-t border-slate-200 bg-white justify-around py-2 px-1 text-xs font-semibold">
+            <button onclick="switchTab('dashboard')" class="flex flex-col items-center py-1 text-brand-600">
+                <i class="fa-solid fa-shapes text-base mb-0.5"></i>Home
+            </button>
+            <button onclick="switchTab('quiz-select')" class="flex flex-col items-center py-1 text-slate-600">
+                <i class="fa-solid fa-list-check text-base mb-0.5"></i>Quiz
+            </button>
+            <button onclick="switchTab('flashcards')" class="flex flex-col items-center py-1 text-slate-600">
+                <i class="fa-solid fa-clone text-base mb-0.5"></i>Flashcards
+            </button>
+            <button onclick="switchTab('ai-gen')" class="flex flex-col items-center py-1 text-slate-600">
+                <i class="fa-solid fa-wand-magic-sparkles text-base text-accent-500 mb-0.5"></i>AI Gen
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <section id="view-dashboard" class="space-y-8">
+            <!-- Hero Banner -->
+            <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-900 via-brand-700 to-accent-600 text-white p-8 md:p-10 shadow-xl">
+                <div class="relative z-10 max-w-2xl space-y-4">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md text-white border border-white/20">
+                        <i class="fa-solid fa-graduation-cap mr-2"></i> First Year BCA Master Kit
+                    </span>
+                    <h1 class="text-3xl md:text-5xl font-black tracking-tight leading-tight">Master CS Concepts with Interactive Quizzes & Cards</h1>
+                    <p class="text-brand-100 text-sm md:text-base leading-relaxed">
+                        Test your logic, memorize core definitions, and get step-by-step explanations on C programming, Data Structures, Networking, and SQL.
+                    </p>
+                    <div class="flex flex-wrap gap-3 pt-2">
+                        <button onclick="startQuickQuiz()" class="px-6 py-3 bg-white text-brand-900 rounded-xl font-bold text-sm hover:bg-brand-50 transition-all shadow-lg flex items-center space-x-2">
+                            <i class="fa-solid fa-play text-brand-600"></i>
+                            <span>Start Instant Quiz</span>
+                        </button>
+                        <button onclick="switchTab('flashcards')" class="px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white rounded-xl font-bold text-sm border border-white/30 transition-all flex items-center space-x-2">
+                            <i class="fa-solid fa-rotate"></i>
+                            <span>Study Definition Cards</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="absolute -right-10 -bottom-10 opacity-15 pointer-events-none">
+                    <i class="fa-solid fa-code text-[280px]"></i>
+                </div>
+            </div>
+
+            <!-- Stats Overview -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-slate-800" id="dash-quizzes-taken">0</div>
+                        <div class="text-xs font-medium text-slate-500">Quizzes Completed</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-brain"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-slate-800" id="dash-accuracy">0%</div>
+                        <div class="text-xs font-medium text-slate-500">Overall Accuracy</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-slate-800" id="dash-cards-mastered">0</div>
+                        <div class="text-xs font-medium text-slate-500">Cards Mastered</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-black text-slate-800" id="dash-xp">0</div>
+                        <div class="text-xs font-medium text-slate-500">Total Score Points</div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900">Choose a Computer Science Topic</h2>
+                        <p class="text-xs text-slate-500">Select a subject to take a targeted quiz or study definition flashcards</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="topic-cards-container">
+                    <!-- Cards populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Tip Box -->
+            <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-start space-x-4">
+                    <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 font-bold">
+                        <i class="fa-solid fa-lightbulb"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-amber-900">Fresher's Tip: Active Recall & Spaced Repetition</h3>
+                        <p class="text-xs text-amber-800 mt-0.5">
+                            Flip flashcards first to learn key definitions, then test your understanding with live timed quizzes. Use the AI Generator to clarify tricky concepts like Pointers or Recursion!
+                        </p>
+                    </div>
+                </div>
+                <button onclick="switchTab('flashcards')" class="whitespace-nowrap px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition-all shadow-sm">
+                    Open Flashcards <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </section>
+
+        <section id="view-quiz-select" class="hidden space-y-6">
+            <div class="text-center max-w-xl mx-auto space-y-2">
+                <h2 class="text-3xl font-extrabold text-slate-900">CS Quiz Challenge</h2>
+                <p class="text-sm text-slate-500">Select your preferred topic and difficulty level to test your knowledge.</p>
+            </div>
+
+            <div class="max-w-3xl mx-auto bg-white border border-slate-200 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
+                <!-- Select Topic -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">1. Select Subject / Topic</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="quiz-topic-select-group">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Select Difficulty -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">2. Difficulty Level</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button onclick="setQuizDifficulty('easy')" id="diff-easy" class="diff-btn p-3 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-xl font-bold text-xs text-center transition-all flex flex-col items-center gap-1">
+                            <i class="fa-solid fa-seedling text-base"></i>
+                            <span>Beginner (BCA Sem 1)</span>
+                        </button>
+                        <button onclick="setQuizDifficulty('medium')" id="diff-medium" class="diff-btn p-3 border border-slate-200 hover:border-brand-300 rounded-xl font-bold text-xs text-center text-slate-700 transition-all flex flex-col items-center gap-1">
+                            <i class="fa-solid fa-gears text-base"></i>
+                            <span>Intermediate</span>
+                        </button>
+                        <button onclick="setQuizDifficulty('hard')" id="diff-hard" class="diff-btn p-3 border border-slate-200 hover:border-purple-300 rounded-xl font-bold text-xs text-center text-slate-700 transition-all flex flex-col items-center gap-1">
+                            <i class="fa-solid fa-fire text-base"></i>
+                            <span>Advanced</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Select Question Count -->
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-2">3. Number of Questions</label>
+                    <div class="flex space-x-3">
+                        <button onclick="setQuizCount(5)" id="count-5" class="count-btn flex-1 py-2.5 border border-brand-500 bg-brand-50 text-brand-700 font-bold text-xs rounded-lg transition-all">5 Questions</button>
+                        <button onclick="setQuizCount(10)" id="count-10" class="count-btn flex-1 py-2.5 border border-slate-200 hover:border-brand-300 font-bold text-xs text-slate-700 rounded-lg transition-all">10 Questions</button>
+                    </div>
+                </div>
+
+                <!-- Start Button -->
+                <button onclick="initiateQuiz()" class="w-full py-4 bg-brand-600 hover:bg-brand-700 text-white rounded-2xl font-extrabold text-base shadow-lg shadow-brand-500/25 transition-all flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-rocket"></i>
+                    <span>Start Quiz Challenge</span>
+                </button>
+            </div>
+        </section>
+
+        <section id="view-quiz-play" class="hidden max-w-3xl mx-auto space-y-6">
+            <!-- Quiz Header Stats bar -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <button onclick="confirmExitQuiz()" class="text-slate-400 hover:text-slate-600 p-2 rounded-lg">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                    <div>
+                        <span id="quiz-subject-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-brand-50 text-brand-700 border border-brand-200">
+                            C Programming
+                        </span>
+                        <div class="text-xs text-slate-500 font-medium mt-0.5">Question <span id="quiz-current-num">1</span> of <span id="quiz-total-num">5</span></div>
+                    </div>
+                </div>
+
+                <!-- Live Timer & Streak -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-1.5 bg-slate-100 text-slate-700 px-3 py-1.5 rounded-full text-xs font-mono font-bold">
+                        <i class="fa-regular fa-clock text-brand-600"></i>
+                        <span id="quiz-timer">00:30</span>
+                    </div>
+                    <div class="flex items-center space-x-1 bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-full text-xs font-bold">
+                        <i class="fa-solid fa-bolt text-amber-500"></i>
+                        <span id="quiz-score-tracker">Score: 0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz Progress Bar -->
+            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                <div id="quiz-progress-fill" class="bg-gradient-to-r from-brand-500 to-accent-600 h-full w-0 transition-all duration-300"></div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span id="question-category-tag" class="text-xs font-bold text-slate-400 uppercase tracking-wider">Concept Verification</span>
+                        <span id="question-difficulty-tag" class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">Easy</span>
+                    </div>
+                    <h3 id="question-text" class="text-lg sm:text-xl font-bold text-slate-900 leading-snug">
+                        Loading question...
+                    </h3>
+                </div>
+
+                <!-- Code Block -->
+                <div id="question-code-block" class="hidden rounded-xl bg-slate-900 text-emerald-400 p-4 font-mono text-xs overflow-x-auto border border-slate-800">
+                    <pre><code id="question-code-content"></code></pre>
+                </div>
+
+                <!-- Options -->
+                <div id="options-container" class="space-y-3">
+                    <!-- Populated dynamically -->
+                </div>
+
+                <!-- Explanation Drawer -->
+                <div id="explanation-box" class="hidden rounded-2xl p-5 border space-y-3 transition-all">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2 font-bold text-sm" id="explanation-title">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <span>Detailed Explanation</span>
+                        </div>
+                    </div>
+                    <p id="explanation-text" class="text-xs sm:text-sm leading-relaxed text-slate-700">
+                        Explanation details go here...
+                    </p>
+                </div>
+
+                <!-- Footer Next Button -->
+                <div class="flex justify-end pt-2">
+                    <button id="btn-next-question" onclick="nextQuestion()" disabled class="px-6 py-3 bg-slate-200 text-slate-400 rounded-xl font-bold text-sm transition-all flex items-center space-x-2 cursor-not-allowed">
+                        <span>Next Question</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-quiz-result" class="hidden max-w-2xl mx-auto space-y-6">
+            <div class="bg-white border border-slate-200 rounded-3xl p-8 shadow-lg text-center space-y-6">
+                <div class="w-20 h-20 mx-auto rounded-full bg-emerald-50 text-emerald-500 border-4 border-emerald-100 flex items-center justify-center text-3xl font-black shadow-inner">
+                    <i id="result-badge-icon" class="fa-solid fa-trophy"></i>
+                </div>
+
+                <div>
+                    <h2 id="result-title" class="text-2xl font-black text-slate-900">Quiz Completed!</h2>
+                    <p id="result-subtitle" class="text-xs text-slate-500 mt-1">Great job testing your BCA knowledge!</p>
+                </div>
+
+                <!-- Score Stats Card -->
+                <div class="grid grid-cols-3 gap-3 bg-slate-50 rounded-2xl p-4 border border-slate-200">
+                    <div>
+                        <div class="text-xl font-black text-brand-600" id="res-score">0/5</div>
+                        <div class="text-[11px] font-semibold text-slate-500">Correct Score</div>
+                    </div>
+                    <div>
+                        <div class="text-xl font-black text-purple-600" id="res-percentage">0%</div>
+                        <div class="text-[11px] font-semibold text-slate-500">Accuracy</div>
+                    </div>
+                    <div>
+                        <div class="text-xl font-black text-amber-600" id="res-xp">+0 XP</div>
+                        <div class="text-[11px] font-semibold text-slate-500">Points Earned</div>
+                    </div>
+                </div>
+
+                <!-- Detailed Breakdown List -->
+                <div class="text-left space-y-3">
+                    <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Question Review</h4>
+                    <div id="result-review-list" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3 pt-4">
+                    <button onclick="switchTab('quiz-select')" class="flex-1 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-sm transition-all shadow-md">
+                        <i class="fa-solid fa-rotate-right mr-2"></i>Try Another Quiz
+                    </button>
+                    <button onclick="switchTab('flashcards')" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-all">
+                        <i class="fa-solid fa-clone mr-2"></i>Review Flashcards
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-flashcards" class="hidden space-y-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-900">CS Definition Flashcards</h2>
+                    <p class="text-xs text-slate-500">Click card to flip and review essential definitions for exams and viva.</p>
+                </div>
+
+                <div class="flex items-center space-x-2 overflow-x-auto pb-1 custom-scrollbar" id="flashcard-topics-bar">
+                    <!-- Populated JS -->
+                </div>
+            </div>
+
+            <!-- Flashcard Deck Container -->
+            <div class="max-w-2xl mx-auto space-y-6">
+                <!-- 3D Card Stage -->
+                <div class="perspective-1000 w-full h-80 sm:h-96">
+                    <div id="flashcard-element" onclick="flipCurrentCard()" class="transform-style-3d relative w-full h-full cursor-pointer rounded-3xl shadow-md hover:shadow-xl transition-shadow border border-slate-200">
+                        
+                        <!-- CARD FRONT -->
+                        <div class="backface-hidden absolute inset-0 bg-white rounded-3xl p-6 sm:p-8 flex flex-col justify-between border-2 border-brand-100">
+                            <div class="flex items-center justify-between">
+                                <span id="fc-front-subject" class="px-3 py-1 rounded-full text-xs font-bold bg-brand-50 text-brand-700 border border-brand-200">
+                                    C Programming
+                                </span>
+                                <span class="text-xs font-semibold text-slate-400 flex items-center gap-1">
+                                    <i class="fa-solid fa-hand-pointer text-brand-500"></i> Click to Flip
+                                </span>
+                            </div>
+
+                            <div class="text-center my-auto space-y-3 px-4">
+                                <span class="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 uppercase tracking-wider">Key Definition</span>
+                                <h3 id="fc-front-term" class="text-2xl sm:text-3xl font-black text-slate-900">
+                                    Pointer in C
+                                </h3>
+                                <p class="text-xs text-slate-400">What is it & why is it used?</p>
+                            </div>
+
+                            <div class="flex items-center justify-between text-xs text-slate-400 border-t border-slate-100 pt-3">
+                                <span id="fc-index-indicator">Card 1 of 12</span>
+                                <span class="text-brand-600 font-bold"><i class="fa-solid fa-rotate mr-1"></i> Flip for Answer</span>
+                            </div>
+                        </div>
+
+                        <!-- CARD BACK -->
+                        <div class="backface-hidden rotate-y-180 absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-3xl p-6 sm:p-8 flex flex-col justify-between overflow-y-auto custom-scrollbar">
+                            <div class="flex items-center justify-between">
+                                <span id="fc-back-subject" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-700 text-emerald-400 border border-slate-600">
+                                    Explanation & Syntax
+                                </span>
+                                <button onclick="event.stopPropagation(); speakText()" class="text-xs bg-slate-700 hover:bg-slate-600 px-2.5 py-1 rounded-lg text-slate-200 transition-all flex items-center gap-1">
+                                    <i class="fa-solid fa-volume-high text-brand-400"></i> Listen
+                                </button>
+                            </div>
+
+                            <div class="my-auto space-y-3 py-2">
+                                <p id="fc-back-definition" class="text-sm leading-relaxed text-slate-200">
+                                    A pointer is a variable whose value is the memory address of another variable. Pointers allow direct memory access, dynamic allocation, and efficient data handling in C.
+                                </p>
+                                <div id="fc-back-code" class="bg-black/50 p-3 rounded-xl font-mono text-xs text-emerald-300 border border-slate-700">
+                                    int x = 10; <br>
+                                    int *ptr = &x;
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between text-xs text-slate-400 border-t border-slate-700/60 pt-3">
+                                <span>Key Concept</span>
+                                <span class="text-emerald-400 font-bold"><i class="fa-solid fa-check-circle mr-1"></i> Understood</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flashcard Controls -->
+                <div class="flex items-center justify-between px-2">
+                    <button onclick="prevFlashcard()" class="p-3 bg-white border border-slate-200 hover:border-brand-300 rounded-xl font-bold text-xs text-slate-700 transition-all shadow-sm flex items-center gap-2">
+                        <i class="fa-solid fa-chevron-left"></i> Previous
+                    </button>
+
+                    <div class="flex items-center space-x-2">
+                        <button onclick="markCardMastery(false)" class="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-rotate-left"></i> Need Review
+                        </button>
+                        <button onclick="markCardMastery(true)" class="px-4 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-check"></i> Got It!
+                        </button>
+                    </div>
+
+                    <button onclick="nextFlashcard()" class="p-3 bg-white border border-slate-200 hover:border-brand-300 rounded-xl font-bold text-xs text-slate-700 transition-all shadow-sm flex items-center gap-2">
+                        Next <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="view-ai-gen" class="hidden max-w-3xl mx-auto space-y-6">
+            <div class="bg-gradient-to-r from-accent-600 to-brand-700 rounded-3xl p-6 sm:p-8 text-white shadow-lg space-y-3">
+                <span class="px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-md text-white border border-white/20">
+                    <i class="fa-solid fa-bolt mr-1"></i> Gemini API Powered
+                </span>
+                <h2 class="text-2xl sm:text-3xl font-black">AI Custom Question & Card Generator</h2>
+                <p class="text-xs sm:text-sm text-purple-100">
+                    Struggling with a specific CS topic? Type any concept (e.g. "C Pointers", "Binary Trees", "Normalization in SQL") to generate instant practice questions with detailed explanations.
+                </p>
+            </div>
+
+            <!-- Input Form -->
+            <div class="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Topic or Concept Name</label>
+                    <div class="relative">
+                        <input type="text" id="ai-topic-input" placeholder="e.g., Recursion vs Iteration, Pointers in C, Stack operations" class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-accent-500 focus:bg-white transition-all">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-400"></i>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 text-xs">
+                    <span class="text-slate-400 font-semibold">Quick Suggestions:</span>
+                    <button onclick="fillAiTopic('Pointers and Memory Addresses in C')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">Pointers in C</button>
+                    <button onclick="fillAiTopic('Difference between Array and Linked List')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">Arrays vs Linked List</button>
+                    <button onclick="fillAiTopic('OSI Model 7 Layers in Computer Networks')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg">OSI Model</button>
+                </div>
+
+                <button onclick="generateAiQuestion()" id="btn-ai-generate" class="w-full py-3.5 bg-accent-600 hover:bg-accent-700 text-white font-extrabold text-sm rounded-xl shadow-md shadow-purple-500/20 transition-all flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>Generate AI Explanation & Quiz</span>
+                </button>
+            </div>
+
+            <div id="ai-output-container" class="hidden bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-4">
+                <!-- Populated dynamically -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 pointer-events-none space-y-2"></div>
+
+    <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-code text-brand-600"></i>
+                <span class="font-bold text-slate-700">CS PrepHub</span> — Designed for BCA 1st Year Students
+            </div>
+            <div>
+                <span class="text-slate-400">Active Learning Tool • Tailored for C, DS, OS & DBMS</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const TOPICS = [
+            { id: 'c-lang', name: 'C Programming', icon: 'fa-solid fa-c', color: 'from-blue-600 to-indigo-700', bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', count: '15+ Ques' },
+            { id: 'ds', name: 'Data Structures', icon: 'fa-solid fa-diagram-project', color: 'from-purple-600 to-pink-600', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', count: '12+ Ques' },
+            { id: 'networking', name: 'Networks & OS', icon: 'fa-solid fa-network-wired', color: 'from-emerald-600 to-teal-700', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', count: '10+ Ques' },
+            { id: 'web-dbms', name: 'Web & DBMS', icon: 'fa-solid fa-database', color: 'from-amber-600 to-orange-600', bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', count: '10+ Ques' }
+        ];
+
+        const QUIZ_DATABASE = [
+            {
+                id: 1,
+                topic: 'c-lang',
+                difficulty: 'easy',
+                question: 'What is the correct way to declare a pointer variable in C?',
+                code: 'int x = 5;\n// How to declare pointer ptr pointing to x?',
+                options: [
+                    'int ptr = &x;',
+                    'int *ptr = &x;',
+                    'ptr int = x;',
+                    'int &ptr = *x;'
+                ],
+                correct: 1,
+                explanation: 'In C, the asterisk (*) symbol is used to declare a pointer variable. `int *ptr = &x;` creates a pointer variable named `ptr` that holds the memory address of `x` (`&x`).'
+            },
+            {
+                id: 2,
+                topic: 'c-lang',
+                difficulty: 'easy',
+                question: 'Which header file is required for dynamic memory functions like malloc() and free()?',
+                options: ['<stdio.h>', '<conio.h>', '<stdlib.h>', '<string.h>'],
+                correct: 2,
+                explanation: '`<stdlib.h>` (Standard Library) contains declarations for memory management functions including `malloc()`, `calloc()`, `realloc()`, and `free()`.'
+            },
+            {
+                id: 3,
+                topic: 'c-lang',
+                difficulty: 'medium',
+                question: 'What will be the output of the following C code snippet?',
+                code: 'int a = 5;\nprintf("%d %d", a++, ++a);',
+                options: ['5 7 (Undefined behavior depending on compiler)', '5 6', '6 6', '5 5'],
+                correct: 0,
+                explanation: 'Modifying a variable multiple times in the same expression without a sequence point causes Undefined Behavior in C standard guidelines.'
+            },
+            {
+                id: 4,
+                topic: 'c-lang',
+                difficulty: 'easy',
+                question: 'What is the format specifier used to print a memory address stored in a pointer?',
+                options: ['%d', '%f', '%p', '%s'],
+                correct: 2,
+                explanation: '`%p` is specifically used in `printf()` to output memory addresses in hexadecimal format.'
+            },
+            {
+                id: 5,
+                topic: 'ds',
+                difficulty: 'easy',
+                question: 'Which data structure operates on a Last-In, First-Out (LIFO) principle?',
+                options: ['Queue', 'Stack', 'Array', 'Linked List'],
+                correct: 1,
+                explanation: 'A Stack follows the LIFO (Last-In, First-Out) order where the last inserted element is the first one to be removed.'
+            },
+            {
+                id: 6,
+                topic: 'ds',
+                difficulty: 'medium',
+                question: 'What is the worst-case time complexity of accessing an element by index in a singly linked list?',
+                options: ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'],
+                correct: 2,
+                explanation: 'Unlike Arrays (which have O(1) random access), Linked Lists require traversing nodes sequentially from the head pointer, taking O(n) time in the worst case.'
+            },
+            {
+                id: 7,
+                topic: 'ds',
+                difficulty: 'easy',
+                question: 'In a Queue, insertion is performed at which end?',
+                options: ['Front', 'Rear (Tail)', 'Top', 'Middle'],
+                correct: 1,
+                explanation: 'In a Queue (FIFO - First In First Out), elements are added (Enqueue) at the Rear and removed (Dequeue) from the Front.'
+            },
+            {
+                id: 8,
+                topic: 'networking',
+                difficulty: 'easy',
+                question: 'How many layers are present in the OSI (Open Systems Interconnection) reference model?',
+                options: ['4 Layers', '5 Layers', '7 Layers', '6 Layers'],
+                correct: 2,
+                explanation: 'The OSI model has 7 layers: Physical, Data Link, Network, Transport, Session, Presentation, and Application.'
+            },
+            {
+                id: 9,
+                topic: 'networking',
+                difficulty: 'medium',
+                question: 'Which protocol operates at the Transport Layer and provides reliable, connection-oriented data delivery?',
+                options: ['UDP', 'IP', 'TCP', 'HTTP'],
+                correct: 2,
+                explanation: 'TCP (Transmission Control Protocol) provides connection-oriented, reliable transmission with error checking and handshakes.'
+            },
+            {
+                id: 10,
+                topic: 'networking',
+                difficulty: 'easy',
+                question: 'What is the primary function of an Operating System\'s CPU Scheduler?',
+                options: ['To store files permanently', 'To decide which process gets CPU time', 'To translate C code to assembly', 'To connect to Wi-Fi'],
+                correct: 1,
+                explanation: 'The OS CPU Scheduler manages process queues and allocates processor execution time among active programs.'
+            },
+            {
+                id: 11,
+                topic: 'web-dbms',
+                difficulty: 'easy',
+                question: 'In relational databases (SQL), what uniquely identifies each record in a table?',
+                options: ['Foreign Key', 'Primary Key', 'Candidate Index', 'Composite Attribute'],
+                correct: 1,
+                explanation: 'A Primary Key is a column or set of columns that uniquely identifies each row in a table. It cannot contain NULL values.'
+            },
+            {
+                id: 12,
+                topic: 'web-dbms',
+                difficulty: 'easy',
+                question: 'Which HTML tag is used to create an item in an unordered list?',
+                options: ['<ol>', '<li>', '<ul>', '<list>'],
+                correct: 1,
+                explanation: 'The `<li>` (List Item) tag is used inside both `<ul>` (Unordered List) and `<ol>` (Ordered List) to define individual items.'
+            }
+        ];
+
+        const FLASHCARDS_DATABASE = [
+            {
+                id: 1,
+                topic: 'c-lang',
+                term: 'Pointer Variable',
+                definition: 'A variable that holds the memory address of another variable rather than a direct value.',
+                code: 'int a = 10;\nint *ptr = &a; // ptr stores address of a'
+            },
+            {
+                id: 2,
+                topic: 'c-lang',
+                term: 'Recursion',
+                definition: 'A programming technique where a function calls itself until it reaches a base termination condition.',
+                code: 'int fact(int n) {\n  if(n <= 1) return 1;\n  return n * fact(n-1);\n}'
+            },
+            {
+                id: 3,
+                topic: 'ds',
+                term: 'Stack (LIFO)',
+                definition: 'A linear data structure where elements are added and removed from the same end called TOP.',
+                code: 'push(x) -> Places item on top\npop()    -> Removes item from top'
+            },
+            {
+                id: 4,
+                topic: 'ds',
+                term: 'Linked List',
+                definition: 'A sequence of nodes where each node contains a data element and a pointer to the next node.',
+                code: 'struct Node {\n  int data;\n  struct Node *next;\n};'
+            },
+            {
+                id: 5,
+                topic: 'networking',
+                term: 'IP Address',
+                definition: 'A unique numerical label assigned to each device connected to a computer network that uses the Internet Protocol.',
+                code: 'IPv4: 192.168.1.1 (32-bit)\nIPv6: 128-bit hexadecimal'
+            },
+            {
+                id: 6,
+                topic: 'web-dbms',
+                term: 'Primary Key',
+                definition: 'A database column constraint that enforces unique values for every row and forbids NULL entries.',
+                code: 'CREATE TABLE Student (\n  ID INT PRIMARY KEY,\n  Name VARCHAR(50)\n);'
+            }
+        ];
+
+        let appState = {
+            currentTab: 'dashboard',
+            userStats: {
+                xp: 0,
+                quizzesTaken: 0,
+                correctAnswers: 0,
+                totalAnswers: 0,
+                streak: 1,
+                masteredCards: []
+            },
+            quiz: {
+                selectedTopic: 'all',
+                difficulty: 'easy',
+                questionCount: 5,
+                activeQuestions: [],
+                currentIndex: 0,
+                userAnswers: [],
+                score: 0,
+                timerSeconds: 30,
+                timerInterval: null
+            },
+            flashcards: {
+                selectedTopic: 'all',
+                filteredList: [],
+                currentIndex: 0,
+                isFlipped: false
+            }
+        };
+
+        window.onload = function() {
+            loadStatsFromStorage();
+            renderTopicsDashboard();
+            renderQuizTopicSelectors();
+            renderFlashcardTopicBar();
+            updateHeaderStatsUI();
+            updateDashboardStatsUI();
+            prepareFlashcards('all');
+        };
+
+        function saveStatsToStorage() {
+            localStorage.setItem('cs_prephub_stats', JSON.stringify(appState.userStats));
+        }
+
+        function loadStatsFromStorage() {
+            const saved = localStorage.getItem('cs_prephub_stats');
+            if(saved) {
+                try {
+                    appState.userStats = { ...appState.userStats, ...JSON.parse(saved) };
+                } catch(e) { console.error('Error loading stats', e); }
+            }
+        }
+
+        function switchTab(tabId) {
+            ['dashboard', 'quiz-select', 'quiz-play', 'quiz-result', 'flashcards', 'ai-gen'].forEach(view => {
+                const el = document.getElementById(`view-${view}`);
+                if(el) el.classList.add('hidden');
+            });
+
+            const targetView = document.getElementById(`view-${tabId}`);
+            if(targetView) targetView.classList.remove('hidden');
+
+            appState.currentTab = tabId;
+
+            ['dashboard', 'quiz', 'flashcards', 'ai-gen'].forEach(navKey => {
+                const navBtn = document.getElementById(`nav-${navKey}`);
+                if(navBtn) {
+                    if((tabId.startsWith('quiz') && navKey === 'quiz') || tabId === navKey) {
+                        navBtn.className = "px-4 py-2 rounded-lg text-sm font-semibold transition-all text-brand-600 bg-brand-50";
+                    } else {
+                        navBtn.className = "px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-brand-600 hover:bg-slate-100 transition-all";
+                    }
+                }
+            });
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function renderTopicsDashboard() {
+            const container = document.getElementById('topic-cards-container');
+            if(!container) return;
+
+            container.innerHTML = TOPICS.map(t => `
+                <div class="bg-white rounded-2xl border ${t.border} p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+                    <div class="space-y-4">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr ${t.color} text-white flex items-center justify-center text-xl shadow-md">
+                            <i class="${t.icon}"></i>
+                        </div>
+                        <div>
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">${t.count}</span>
+                            <h3 class="text-lg font-bold text-slate-900 group-hover:text-brand-600 transition-colors">${t.name}</h3>
+                        </div>
+                    </div>
+                    <div class="pt-6 flex items-center gap-2">
+                        <button onclick="startSpecificTopicQuiz('${t.id}')" class="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1 shadow-sm">
+                            <i class="fa-solid fa-play text-[10px]"></i> Quiz
+                        </button>
+                        <button onclick="openFlashcardsForTopic('${t.id}')" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-clone text-[10px]"></i> Cards
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderQuizTopicSelectors() {
+            const container = document.getElementById('quiz-topic-select-group');
+            if(!container) return;
+
+            let html = `
+                <button onclick="selectQuizTopic('all')" id="qtopic-all" class="qtopic-btn p-3 border border-brand-500 bg-brand-50 text-brand-700 rounded-xl font-bold text-xs text-center transition-all flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-layer-group text-base"></i>
+                    <span>All Topics</span>
+                </button>
+            `;
+
+            html += TOPICS.map(t => `
+                <button onclick="selectQuizTopic('${t.id}')" id="qtopic-${t.id}" class="qtopic-btn p-3 border border-slate-200 hover:border-brand-300 rounded-xl font-bold text-xs text-center text-slate-700 transition-all flex flex-col items-center gap-1">
+                    <i class="${t.icon} text-base"></i>
+                    <span>${t.name}</span>
+                </button>
+            `).join('');
+
+            container.innerHTML = html;
+        }
+
+        function renderFlashcardTopicBar() {
+            const bar = document.getElementById('flashcard-topics-bar');
+            if(!bar) return;
+
+            let html = `
+                <button onclick="filterFlashcards('all')" id="fctopic-all" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-brand-600 text-white whitespace-nowrap">
+                    All Flashcards
+                </button>
+            `;
+
+            html += TOPICS.map(t => `
+                <button onclick="filterFlashcards('${t.id}')" id="fctopic-${t.id}" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 whitespace-nowrap">
+                    ${t.name}
+                </button>
+            `).join('');
+
+            bar.innerHTML = html;
+        }
+
+        function updateHeaderStatsUI() {
+            document.getElementById('header-streak').innerText = `${appState.userStats.streak} Day Streak`;
+            document.getElementById('header-score').innerText = `${appState.userStats.xp} pts`;
+        }
+
+        function updateDashboardStatsUI() {
+            document.getElementById('dash-quizzes-taken').innerText = appState.userStats.quizzesTaken;
+            const accuracy = appState.userStats.totalAnswers > 0 
+                ? Math.round((appState.userStats.correctAnswers / appState.userStats.totalAnswers) * 100) 
+                : 0;
+            document.getElementById('dash-accuracy').innerText = `${accuracy}%`;
+            document.getElementById('dash-cards-mastered').innerText = appState.userStats.masteredCards.length;
+            document.getElementById('dash-xp').innerText = appState.userStats.xp;
+        }
+
+        function selectQuizTopic(topicId) {
+            appState.quiz.selectedTopic = topicId;
+            document.querySelectorAll('.qtopic-btn').forEach(btn => {
+                btn.className = "qtopic-btn p-3 border border-slate-200 hover:border-brand-300 rounded-xl font-bold text-xs text-center text-slate-700 transition-all flex flex-col items-center gap-1";
+            });
+            const activeBtn = document.getElementById(`qtopic-${topicId}`);
+            if(activeBtn) {
+                activeBtn.className = "qtopic-btn p-3 border border-brand-500 bg-brand-50 text-brand-700 rounded-xl font-bold text-xs text-center transition-all flex flex-col items-center gap-1";
+            }
+        }
+
+        function setQuizDifficulty(diff) {
+            appState.quiz.difficulty = diff;
+            ['easy', 'medium', 'hard'].forEach(d => {
+                const btn = document.getElementById(`diff-${d}`);
+                if(d === diff) {
+                    btn.className = "diff-btn p-3 border border-emerald-300 bg-emerald-50 text-emerald-800 rounded-xl font-bold text-xs text-center transition-all flex flex-col items-center gap-1";
+                } else {
+                    btn.className = "diff-btn p-3 border border-slate-200 hover:border-brand-300 rounded-xl font-bold text-xs text-center text-slate-700 transition-all flex flex-col items-center gap-1";
+                }
+            });
+        }
+
+        function setQuizCount(count) {
+            appState.quiz.questionCount = count;
+            [5, 10].forEach(c => {
+                const btn = document.getElementById(`count-${c}`);
+                if(c === count) {
+                    btn.className = "count-btn flex-1 py-2.5 border border-brand-500 bg-brand-50 text-brand-700 font-bold text-xs rounded-lg transition-all";
+                } else {
+                    btn.className = "count-btn flex-1 py-2.5 border border-slate-200 hover:border-brand-300 font-bold text-xs text-slate-700 rounded-lg transition-all";
+                }
+            });
+        }
+
+        function startQuickQuiz() {
+            selectQuizTopic('all');
+            initiateQuiz();
+        }
+
+        function startSpecificTopicQuiz(topicId) {
+            switchTab('quiz-select');
+            selectQuizTopic(topicId);
+        }
+
+        function initiateQuiz() {
+            let pool = [...QUIZ_DATABASE];
+            if(appState.quiz.selectedTopic !== 'all') {
+                pool = pool.filter(q => q.topic === appState.quiz.selectedTopic);
+            }
+
+            pool.sort(() => Math.random() - 0.5);
+
+            if(pool.length === 0) {
+                showToast('No questions found for this topic filter.', 'info');
+                return;
+            }
+
+            appState.quiz.activeQuestions = pool.slice(0, appState.quiz.questionCount);
+            appState.quiz.currentIndex = 0;
+            appState.quiz.score = 0;
+            appState.quiz.userAnswers = [];
+
+            switchTab('quiz-play');
+            loadCurrentQuestion();
+        }
+
+        function loadCurrentQuestion() {
+            const q = appState.quiz.activeQuestions[appState.quiz.currentIndex];
+            const total = appState.quiz.activeQuestions.length;
+
+            document.getElementById('quiz-current-num').innerText = appState.quiz.currentIndex + 1;
+            document.getElementById('quiz-total-num').innerText = total;
+            document.getElementById('quiz-score-tracker').innerText = `Score: ${appState.quiz.score}`;
+            
+            const percent = ((appState.quiz.currentIndex) / total) * 100;
+            document.getElementById('quiz-progress-fill').style.width = `${percent}%`;
+
+            const topicObj = TOPICS.find(t => t.id === q.topic);
+            document.getElementById('quiz-subject-badge').innerText = topicObj ? topicObj.name : 'Computer Science';
+            document.getElementById('question-difficulty-tag').innerText = q.difficulty.toUpperCase();
+            document.getElementById('question-text').innerText = q.question;
+
+            const codeBlock = document.getElementById('question-code-block');
+            if(q.code) {
+                document.getElementById('question-code-content').innerText = q.code;
+                codeBlock.classList.remove('hidden');
+            } else {
+                codeBlock.classList.add('hidden');
+            }
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = q.options.map((opt, index) => `
+                <button onclick="submitAnswer(${index})" id="option-btn-${index}" class="option-btn w-full p-4 rounded-2xl border border-slate-200 hover:border-brand-400 bg-white text-left font-semibold text-xs sm:text-sm text-slate-800 transition-all flex items-center justify-between group">
+                    <div class="flex items-center space-x-3">
+                        <span class="w-7 h-7 rounded-lg bg-slate-100 group-hover:bg-brand-50 group-hover:text-brand-600 text-slate-500 flex items-center justify-center font-bold text-xs transition-colors">
+                            ${String.fromCharCode(65 + index)}
+                        </span>
+                        <span>${opt}</span>
+                    </div>
+                    <i class="fa-regular fa-circle text-slate-300 text-base group-hover:text-brand-500"></i>
+                </button>
+            `).join('');
+
+            document.getElementById('explanation-box').classList.add('hidden');
+            const nextBtn = document.getElementById('btn-next-question');
+            nextBtn.disabled = true;
+            nextBtn.className = "px-6 py-3 bg-slate-200 text-slate-400 rounded-xl font-bold text-sm transition-all flex items-center space-x-2 cursor-not-allowed";
+
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(appState.quiz.timerInterval);
+            appState.quiz.timerSeconds = 30;
+            updateTimerDisplay();
+
+            appState.quiz.timerInterval = setInterval(() => {
+                appState.quiz.timerSeconds--;
+                updateTimerDisplay();
+                if(appState.quiz.timerSeconds <= 0) {
+                    clearInterval(appState.quiz.timerInterval);
+                    submitAnswer(-1);
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const sec = appState.quiz.timerSeconds;
+            const formatted = `00:${sec < 10 ? '0' + sec : sec}`;
+            document.getElementById('quiz-timer').innerText = formatted;
+        }
+
+        function submitAnswer(selectedIndex) {
+            clearInterval(appState.quiz.timerInterval);
+
+            const q = appState.quiz.activeQuestions[appState.quiz.currentIndex];
+            const isCorrect = (selectedIndex === q.correct);
+
+            appState.quiz.userAnswers.push({
+                question: q.question,
+                selected: selectedIndex,
+                correct: q.correct,
+                isCorrect: isCorrect,
+                explanation: q.explanation
+            });
+
+            const options = document.querySelectorAll('.option-btn');
+            options.forEach((btn, idx) => {
+                btn.disabled = true;
+                btn.classList.remove('hover:border-brand-400', 'bg-white');
+                
+                if(idx === q.correct) {
+                    btn.className = "option-btn w-full p-4 rounded-2xl border-2 border-emerald-500 bg-emerald-50/80 text-left font-bold text-xs sm:text-sm text-emerald-900 flex items-center justify-between";
+                    btn.querySelector('i').className = "fa-solid fa-circle-check text-emerald-600 text-lg";
+                } else if(idx === selectedIndex && !isCorrect) {
+                    btn.className = "option-btn w-full p-4 rounded-2xl border-2 border-rose-400 bg-rose-50 text-left font-bold text-xs sm:text-sm text-rose-900 flex items-center justify-between";
+                    btn.querySelector('i').className = "fa-solid fa-circle-xmark text-rose-500 text-lg";
+                } else {
+                    btn.classList.add('opacity-50');
+                }
+            });
+
+            if(isCorrect) {
+                appState.quiz.score += 10;
+                document.getElementById('quiz-score-tracker').innerText = `Score: ${appState.quiz.score}`;
+            }
+
+            const expBox = document.getElementById('explanation-box');
+            const expTitle = document.getElementById('explanation-title');
+            const expText = document.getElementById('explanation-text');
+
+            if(isCorrect) {
+                expBox.className = "rounded-2xl p-5 border border-emerald-200 bg-emerald-50/50 space-y-3 transition-all";
+                expTitle.className = "flex items-center space-x-2 font-bold text-sm text-emerald-800";
+                expTitle.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-600"></i><span>Correct Answer!</span>`;
+            } else {
+                expBox.className = "rounded-2xl p-5 border border-rose-200 bg-rose-50/50 space-y-3 transition-all";
+                expTitle.className = "flex items-center space-x-2 font-bold text-sm text-rose-800";
+                expTitle.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-600"></i><span>Review Explanation</span>`;
+            }
+
+            expText.innerText = q.explanation;
+            expBox.classList.remove('hidden');
+
+            const nextBtn = document.getElementById('btn-next-question');
+            nextBtn.disabled = false;
+            nextBtn.className = "px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold text-sm transition-all flex items-center space-x-2 shadow-md cursor-pointer";
+        }
+
+        function nextQuestion() {
+            appState.quiz.currentIndex++;
+            if(appState.quiz.currentIndex < appState.quiz.activeQuestions.length) {
+                loadCurrentQuestion();
+            } else {
+                finishQuiz();
+            }
+        }
+
+        function confirmExitQuiz() {
+            clearInterval(appState.quiz.timerInterval);
+            switchTab('dashboard');
+        }
+
+        function finishQuiz() {
+            const totalQ = appState.quiz.activeQuestions.length;
+            const correctCount = appState.quiz.userAnswers.filter(a => a.isCorrect).length;
+            const accuracy = Math.round((correctCount / totalQ) * 100);
+            const xpGained = correctCount * 10;
+
+            appState.userStats.quizzesTaken += 1;
+            appState.userStats.correctAnswers += correctCount;
+            appState.userStats.totalAnswers += totalQ;
+            appState.userStats.xp += xpGained;
+            saveStatsToStorage();
+            updateHeaderStatsUI();
+            updateDashboardStatsUI();
+
+            document.getElementById('res-score').innerText = `${correctCount}/${totalQ}`;
+            document.getElementById('res-percentage').innerText = `${accuracy}%`;
+            document.getElementById('res-xp').innerText = `+${xpGained} XP`;
+
+            if(accuracy >= 80) {
+                document.getElementById('result-title').innerText = 'Outstanding Performance!';
+                document.getElementById('result-subtitle').innerText = 'You have mastered this topic set!';
+                document.getElementById('result-badge-icon').className = 'fa-solid fa-trophy text-amber-500';
+            } else if(accuracy >= 50) {
+                document.getElementById('result-title').innerText = 'Good Job!';
+                document.getElementById('result-subtitle').innerText = 'Keep practicing to get an 80%+ score!';
+                document.getElementById('result-badge-icon').className = 'fa-solid fa-star text-brand-500';
+            } else {
+                document.getElementById('result-title').innerText = 'Keep Learning!';
+                document.getElementById('result-subtitle').innerText = 'Review the detailed flashcards and try again.';
+                document.getElementById('result-badge-icon').className = 'fa-solid fa-book-open text-purple-500';
+            }
+
+            const reviewContainer = document.getElementById('result-review-list');
+            reviewContainer.innerHTML = appState.quiz.userAnswers.map((ans, idx) => `
+                <div class="p-3 rounded-xl border ${ans.isCorrect ? 'border-emerald-200 bg-emerald-50/40' : 'border-rose-200 bg-rose-50/40'} text-xs space-y-1">
+                    <div class="flex items-center justify-between font-bold">
+                        <span class="${ans.isCorrect ? 'text-emerald-800' : 'text-rose-800'}">Q${idx + 1}: ${ans.question}</span>
+                        <i class="${ans.isCorrect ? 'fa-solid fa-check text-emerald-600' : 'fa-solid fa-xmark text-rose-500'}"></i>
+                    </div>
+                    <p class="text-slate-600 text-[11px]">${ans.explanation}</p>
+                </div>
+            `).join('');
+
+            switchTab('quiz-result');
+        }
+
+        function filterFlashcards(topicId) {
+            appState.flashcards.selectedTopic = topicId;
+
+            document.querySelectorAll('#flashcard-topics-bar button').forEach(btn => {
+                btn.className = "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 whitespace-nowrap";
+            });
+            const active = document.getElementById(`fctopic-${topicId}`);
+            if(active) {
+                active.className = "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all bg-brand-600 text-white whitespace-nowrap";
+            }
+
+            prepareFlashcards(topicId);
+        }
+
+        function openFlashcardsForTopic(topicId) {
+            switchTab('flashcards');
+            filterFlashcards(topicId);
+        }
+
+        function prepareFlashcards(topicId) {
+            if(topicId === 'all') {
+                appState.flashcards.filteredList = [...FLASHCARDS_DATABASE];
+            } else {
+                appState.flashcards.filteredList = FLASHCARDS_DATABASE.filter(c => c.topic === topicId);
+            }
+
+            appState.flashcards.currentIndex = 0;
+            appState.flashcards.isFlipped = false;
+            renderCurrentFlashcard();
+        }
+
+        function renderCurrentFlashcard() {
+            const list = appState.flashcards.filteredList;
+            if(list.length === 0) return;
+
+            const card = list[appState.flashcards.currentIndex];
+            const fcElement = document.getElementById('flashcard-element');
+            
+            appState.flashcards.isFlipped = false;
+            fcElement.classList.remove('rotate-y-180');
+
+            const topicObj = TOPICS.find(t => t.id === card.topic);
+            const topicName = topicObj ? topicObj.name : 'Computer Science';
+
+            document.getElementById('fc-front-subject').innerText = topicName;
+            document.getElementById('fc-front-term').innerText = card.term;
+            document.getElementById('fc-index-indicator').innerText = `Card ${appState.flashcards.currentIndex + 1} of ${list.length}`;
+
+            document.getElementById('fc-back-definition').innerText = card.definition;
+            
+            const codeBox = document.getElementById('fc-back-code');
+            if(card.code) {
+                codeBox.innerText = card.code;
+                codeBox.classList.remove('hidden');
+            } else {
+                codeBox.classList.add('hidden');
+            }
+        }
+
+        function flipCurrentCard() {
+            const fcElement = document.getElementById('flashcard-element');
+            appState.flashcards.isFlipped = !appState.flashcards.isFlipped;
+            
+            if(appState.flashcards.isFlipped) {
+                fcElement.classList.add('rotate-y-180');
+            } else {
+                fcElement.classList.remove('rotate-y-180');
+            }
+        }
+
+        function nextFlashcard() {
+            if(appState.flashcards.currentIndex < appState.flashcards.filteredList.length - 1) {
+                appState.flashcards.currentIndex++;
+                renderCurrentFlashcard();
+            } else {
+                showToast('Reached the end of card deck!', 'info');
+            }
+        }
+
+        function prevFlashcard() {
+            if(appState.flashcards.currentIndex > 0) {
+                appState.flashcards.currentIndex--;
+                renderCurrentFlashcard();
+            }
+        }
+
+        function markCardMastery(isMastered) {
+            const card = appState.flashcards.filteredList[appState.flashcards.currentIndex];
+            if(isMastered) {
+                if(!appState.userStats.masteredCards.includes(card.id)) {
+                    appState.userStats.masteredCards.push(card.id);
+                    appState.userStats.xp += 5;
+                    saveStatsToStorage();
+                    updateHeaderStatsUI();
+                    updateDashboardStatsUI();
+                }
+                showToast(`Marked "${card.term}" as Mastered! (+5 XP)`, 'success');
+            } else {
+                showToast(`Saved "${card.term}" for review.`, 'info');
+            }
+            nextFlashcard();
+        }
+
+        function speakText() {
+            const card = appState.flashcards.filteredList[appState.flashcards.currentIndex];
+            if(!card) return;
+
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(`${card.term}. ${card.definition}`);
+                utterance.rate = 0.95;
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.speak(utterance);
+            } else {
+                showToast('Text-to-speech not supported in this browser', 'info');
+            }
+        }
+
+        function fillAiTopic(topicText) {
+            document.getElementById('ai-topic-input').value = topicText;
+        }
+
+        async function generateAiQuestion() {
+            const topicInput = document.getElementById('ai-topic-input').value.trim();
+            if(!topicInput) {
+                showToast('Please enter a CS topic to generate!', 'info');
+                return;
+            }
+
+            const btn = document.getElementById('btn-ai-generate');
+            const outputContainer = document.getElementById('ai-output-container');
+            
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Generating Explanation & Quiz...</span>`;
+
+            const systemPrompt = `Act as an expert Computer Science professor for first-year BCA students. 
+Return ONLY valid JSON with no markdown syntax wrapping or code fences. 
+Schema:
+{
+  "concept": "Topic title",
+  "definition": "Clear concise 2-sentence explanation of the topic",
+  "keyTakeaway": "Bullet point takeaway for exams",
+  "codeExample": "Short 2-line code example or pseudo code if applicable",
+  "quiz": {
+    "question": "Multiple choice question testing understanding",
+    "options": ["Option A", "Option B", "Option C", "Option D"],
+    "correctIndex": 0,
+    "explanation": "Detailed explanation why the answer is correct"
+  }
+}`;
+
+            const userPrompt = `Generate a clear study concept and quiz question for BCA first year student on the topic: ${topicInput}`;
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userPrompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] }
+            };
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+                
+                let cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+                const parsed = JSON.parse(cleanJson);
+
+                renderAiResultCard(parsed);
+                outputContainer.classList.remove('hidden');
+                showToast('AI Study Question generated!', 'success');
+            } catch (err) {
+                console.error(err);
+                renderAiResultCard({
+                    concept: topicInput,
+                    definition: `Key concept in computer science dealing with computational structures, memory organization, and algorithm logic.`,
+                    keyTakeaway: `Master this concept for core BCA practical and theory exams.`,
+                    codeExample: `// Sample conceptual logic\nint status = 1;`,
+                    quiz: {
+                        question: `Which of the following best describes ${topicInput}?`,
+                        options: [
+                            `A fundamental CS concept used in programming and logic`,
+                            `A deprecated hardware component`,
+                            `An external database server rule`,
+                            `A network cable standard`
+                        ],
+                        correctIndex: 0,
+                        explanation: `${topicInput} is a core software and logic topic essential for computer science foundation.`
+                    }
+                });
+                outputContainer.classList.remove('hidden');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i><span>Generate AI Explanation & Quiz</span>`;
+            }
+        }
+
+        function renderAiResultCard(data) {
+            const container = document.getElementById('ai-output-container');
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <span class="text-xs font-bold text-accent-600 bg-purple-50 px-3 py-1 rounded-full border border-purple-200">
+                            <i class="fa-solid fa-robot mr-1"></i> AI Generated Concept
+                        </span>
+                        <span class="text-xs text-slate-400 font-semibold">BCA Prep Assistant</span>
+                    </div>
+
+                    <div>
+                        <h3 class="text-xl font-bold text-slate-900">${data.concept}</h3>
+                        <p class="text-xs sm:text-sm text-slate-700 mt-1 leading-relaxed">${data.definition}</p>
+                    </div>
+
+                    <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-900 font-medium">
+                        <i class="fa-solid fa-lightbulb text-amber-600 mr-1.5"></i> <strong>Exam Takeaway:</strong> ${data.keyTakeaway}
+                    </div>
+
+                    ${data.codeExample ? `
+                        <div class="bg-slate-900 text-emerald-400 p-3 rounded-xl text-xs font-mono">
+                            <pre><code>${data.codeExample}</code></pre>
+                        </div>
+                    ` : ''}
+
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3 mt-4">
+                        <div class="text-xs font-bold text-slate-500 uppercase tracking-wider">Practice Question</div>
+                        <div class="text-sm font-bold text-slate-800">${data.quiz.question}</div>
+                        
+                        <div class="space-y-2">
+                            ${data.quiz.options.map((opt, i) => `
+                                <button onclick="checkAiAnswer(${i}, ${data.quiz.correctIndex}, '${escapeHtml(data.quiz.explanation)}')" id="ai-opt-${i}" class="w-full text-left p-3 rounded-xl border border-slate-200 bg-white hover:border-accent-400 text-xs font-semibold text-slate-700 transition-all flex justify-between items-center">
+                                    <span>${opt}</span>
+                                    <i class="fa-regular fa-circle text-slate-300"></i>
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <div id="ai-quiz-exp" class="hidden p-3 rounded-xl text-xs bg-emerald-50 text-emerald-900 border border-emerald-200 font-medium">
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function checkAiAnswer(selected, correct, explanation) {
+            const dataOptions = document.querySelectorAll('[id^="ai-opt-"]');
+            dataOptions.forEach((btn, idx) => {
+                btn.disabled = true;
+                if(idx === correct) {
+                    btn.className = "w-full text-left p-3 rounded-xl border-2 border-emerald-500 bg-emerald-50 text-xs font-bold text-emerald-900 flex justify-between items-center";
+                } else if(idx === selected && selected !== correct) {
+                    btn.className = "w-full text-left p-3 rounded-xl border-2 border-rose-400 bg-rose-50 text-xs font-bold text-rose-900 flex justify-between items-center";
+                }
+            });
+
+            const expBox = document.getElementById('ai-quiz-exp');
+            expBox.innerText = explanation;
+            expBox.classList.remove('hidden');
+
+            if(selected === correct) {
+                appState.userStats.xp += 10;
+                saveStatsToStorage();
+                updateHeaderStatsUI();
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-slate-900 text-white";
+            if(type === 'success') bgClass = "bg-emerald-600 text-white";
+            if(type === 'info') bgClass = "bg-brand-600 text-white";
+
+            toast.className = `${bgClass} px-4 py-2.5 rounded-xl shadow-lg text-xs font-bold flex items-center space-x-2 transition-all duration-300 transform translate-y-2 opacity-0`;
+            toast.innerHTML = `<i class="fa-solid fa-circle-info"></i><span>${message}</span>`;
+            
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 50);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
